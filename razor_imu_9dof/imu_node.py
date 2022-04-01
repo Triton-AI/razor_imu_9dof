@@ -148,12 +148,12 @@ class RazorImuNode(Node):
         
         self.declare_parameter("baudrate", 57600)
 
-        imuMsg = Imu()
-        imuMsg.orientation_covariance = self.orientation_covariance_
-        imuMsg.angular_velocity_covariance = self.angular_velocity_covariance_
-        imuMsg.linear_acceleration_covariance = self.linear_acceleration_covariance_
+        self.imuMsg = Imu()
+        self.imuMsg.orientation_covariance = self.orientation_covariance_
+        self.imuMsg.angular_velocity_covariance = self.angular_velocity_covariance_
+        self.imuMsg.linear_acceleration_covariance = self.linear_acceleration_covariance_
         
-        diag_pub_time = self.get_clock().now()
+        self.diag_pub_time = self.get_clock().now()
 
         try:
             self.ser_ = serial.Serial(port=self.port_, baudrate=self.get_parameter('baudrate').value, timeout=1)
@@ -165,7 +165,7 @@ class RazorImuNode(Node):
         roll=0
         pitch=0
         yaw=0
-        seq=0
+        self.seq=0
         accel_factor = 9.806 / 256.0 # sensor reports accel as 256.0 = 1G (9.8m/s^2). Convert to m/s^2.
 
         self.get_logger().info("Giving the razor IMU board 5 seconds to boot...")
@@ -258,7 +258,7 @@ class RazorImuNode(Node):
                 errcount = 0
                 #in AHRS firmware z axis points down, in ROS z axis points up (see REP 103)
                 yaw_deg = -float(words[0])
-                yaw_deg = yaw_deg + self.imu_yaw_calibration_
+                yaw_deg = yaw_deg + self.imu_yaw_calib_
                 if yaw_deg > 180.0:
                     yaw_deg = yaw_deg - 360.0
                 if yaw_deg < -180.0:
@@ -271,29 +271,27 @@ class RazorImuNode(Node):
                 # Publish message
                 # AHRS firmware accelerations are negated
                 # This means y and z are correct for ROS, but x needs reversing
-                imuMsg.linear_acceleration.x = -float(words[3]) * accel_factor
-                imuMsg.linear_acceleration.y = float(words[4]) * accel_factor
-                imuMsg.linear_acceleration.z = float(words[5]) * accel_factor
+                self.imuMsg.linear_acceleration.x = -float(words[3]) * accel_factor
+                self.imuMsg.linear_acceleration.y = float(words[4]) * accel_factor
+                self.imuMsg.linear_acceleration.z = float(words[5]) * accel_factor
 
-                imuMsg.angular_velocity.x = float(words[6])
+                self.imuMsg.angular_velocity.x = float(words[6])
                 #in AHRS firmware y axis points right, in ROS y axis points left (see REP 103)
-                imuMsg.angular_velocity.y = -float(words[7])
+                self.imuMsg.angular_velocity.y = -float(words[7])
                 #in AHRS firmware z axis points down, in ROS z axis points up (see REP 103) 
-                imuMsg.angular_velocity.z = -float(words[8])
+                self.imuMsg.angular_velocity.z = -float(words[8])
 
             q = quaternion_from_euler(roll,pitch,yaw)
-            imuMsg.orientation.x = q[0]
-            imuMsg.orientation.y = q[1]
-            imuMsg.orientation.z = q[2]
-            imuMsg.orientation.w = q[3]
-            imuMsg.header.stamp= self.get_clock().now().to_msg()
-            imuMsg.header.frame_id = self.frame_id_
-            imuMsg.header.seq = seq
-            seq = seq + 1
-            self.imu_pub_.publish(imuMsg)
+            self.imuMsg.orientation.x = q[0]
+            self.imuMsg.orientation.y = q[1]
+            self.imuMsg.orientation.z = q[2]
+            self.imuMsg.orientation.w = q[3]
+            self.imuMsg.header.stamp= self.get_clock().now().to_msg()
+            self.imuMsg.header.frame_id = self.frame_id_
+            self.seq = self.seq + 1
+            self.imu_pub_.publish(self.imuMsg)
 
-            if (diag_pub_time < self.get_clock().now()) :
-                diag_pub_time += 1
+            if (self.diag_pub_time < self.get_clock().now()) :
                 diag_arr = DiagnosticArray()
                 diag_arr.header.stamp = self.get_clock().now().to_msg()
                 diag_arr.header.frame_id = '1'
@@ -301,13 +299,24 @@ class RazorImuNode(Node):
                 diag_msg.name = 'Razor_Imu'
                 diag_msg.level = DiagnosticStatus.OK
                 diag_msg.message = 'Received AHRS measurement'
-                diag_msg.values.append(KeyValue('roll (deg)',
-                                        str(roll*(180.0/math.pi))))
-                diag_msg.values.append(KeyValue('pitch (deg)',
-                                        str(pitch*(180.0/math.pi))))
-                diag_msg.values.append(KeyValue('yaw (deg)',
-                                        str(yaw*(180.0/math.pi))))
-                diag_msg.values.append(KeyValue('sequence number', str(seq)))
+                roll_key_val = KeyValue()
+                yaw_key_val = KeyValue()
+                pitch_key_val = KeyValue()
+                seq_key_val = KeyValue()
+                roll_key_val.key = 'roll (deg)'
+                roll_key_val.value = str(roll * (180.0 / math.pi))
+                yaw_key_val.key = 'yaw (deg)'
+                yaw_key_val.value = str(yaw * (180.0 / math.pi))
+                pitch_key_val.key = 'pitch (deg)'
+                pitch_key_val.value = str(pitch * (180.0 / math.pi))
+
+                seq_key_val.key= 'sequence number'
+                seq_key_val.value = str(self.seq)
+
+                diag_msg.values.append(roll_key_val)
+                diag_msg.values.append(yaw_key_val)
+                diag_msg.values.append(pitch_key_val)
+                diag_msg.values.append(seq_key_val)
                 diag_arr.status.append(diag_msg)
                 self.diag_pub_.publish(diag_arr)
                 

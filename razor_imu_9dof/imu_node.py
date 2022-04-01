@@ -28,6 +28,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 
 import rclpy
+from rclpy.node import Node
 import serial
 import math
 import sys
@@ -45,94 +46,107 @@ DEGREES_2_RAD = math.pi/180.0
 MIN_YAW_CALIBRATION = -10
 MAX_YAW_CALIBRATION = 10
 
-class RazorImuNode(rclpy.Node):
+class RazorImuNode(Node):
     def __init__(self):
         super().__init__('razor_imu_node')
         self.imu_pub_ = self.create_publisher(Imu, 'imu', rclpy.qos.qos_profile_sensor_data)
         self.diag_pub_ = self.create_publisher(DiagnosticArray, 'diagnostics', rclpy.qos.qos_profile_sensor_data)
 
-        self.declare_parameter('imu_yaw_calibration')
+        self.declare_parameter('imu_yaw_calibration', 0.0)
         self.imu_yaw_calib_ = self.get_parameter('imu_yaw_calibration').value
 
-        self.declare_parameter('covariance_size')
-        covariance_size = self.get_parameter('covariance_size').value
-
-        self.declare_parameter('orientation_covariance')
+        self.declare_parameter('orientation_covariance', 
+            [0.0025 , 0.0 , 0.0,
+            0.0, 0.0025, 0.0,
+            0.0, 0.0, 0.0025]
+        )
         self.orientation_covariance_ = self.get_parameter('orientation_covariance').value
 
-        self.declare_parameter('angular_velocity_covariance')
+        self.declare_parameter('angular_velocity_covariance', 
+            [0.02, 0.0 , 0.0,
+            0.0 , 0.02, 0.0,
+            0.0 , 0.0 , 0.02]
+        )
         self.angular_velocity_covariance_ = self.get_parameter('angular_velocity_covariance').value
 
-        self.declare_parameter('linear_acceleration_covariance')
+        self.declare_parameter('linear_acceleration_covariance',
+            [0.04 , 0.0 , 0.0,
+            0.0 , 0.04, 0.0,
+            0.0 , 0.0 , 0.04]
+        )
         self.linear_acceleration_covariance_ = self.get_parameter('linear_acceleration_covariance').value
 
-        self.declare_parameter("port")
+        self.declare_parameter("port", "/dev/ttyUSB0")
         self.port_ = self.get_parameter('port').value
 
-        self.declare_parameter("frame_id")
+        self.declare_parameter("frame_id", "base_imu_link")
         self.frame_id_ = self.get_parameter('frame_id').value
 
-        self.declare_parameter("accel_x_min")
+        self.declare_parameter("accel_x_min", -250.0)
         self.accel_x_min_ = self.get_parameter('accel_x_min').value
 
-        self.declare_parameter("accel_x_max")
+        self.declare_parameter("accel_x_max", 250.0)
         self.accel_x_max_ = self.get_parameter('accel_x_max').value
 
-        self.declare_parameter("accel_y_min")
+        self.declare_parameter("accel_y_min", -250.0)
         self.accel_y_min_ = self.get_parameter('accel_y_min').value
 
-        self.declare_parameter("accel_y_max")
+        self.declare_parameter("accel_y_max", 250.0)
         self.accel_y_max_ = self.get_parameter('accel_y_max').value
 
-        self.declare_parameter("accel_z_min")
+        self.declare_parameter("accel_z_min", -250.0)
         self.accel_z_min_ = self.get_parameter('accel_z_min').value
 
-        self.declare_parameter("accel_z_max")
+        self.declare_parameter("accel_z_max", 250.0)
         self.accel_z_max_ = self.get_parameter('accel_z_max').value
 
-        self.declare_parameter("magn_x_min")
+        self.declare_parameter("magn_x_min", -600.0)
         self.magn_x_min_ = self.get_parameter('magn_x_min').value
 
-        self.declare_parameter("magn_x_max")
+        self.declare_parameter("magn_x_max", 600.0)
         self.magn_x_max_ = self.get_parameter('magn_x_max').value
 
-        self.declare_parameter("magn_y_min")
+        self.declare_parameter("magn_y_min", -600.0)
         self.magn_y_min_ = self.get_parameter('magn_y_min').value
 
-        self.declare_parameter("magn_y_max")
+        self.declare_parameter("magn_y_max", 600.0)
         self.magn_y_max_ = self.get_parameter('magn_y_max').value
 
-        self.declare_parameter("magn_z_min")
+        self.declare_parameter("magn_z_min", -600.0)
         self.magn_z_min_ = self.get_parameter('magn_z_min').value
 
-        self.declare_parameter("magn_z_max")
+        self.declare_parameter("magn_z_max", 600.0)
         self.magn_z_max_ = self.get_parameter('magn_z_max').value
 
-        self.declare_parameter("calibration_magn_use_extended")
+        self.declare_parameter("calibration_magn_use_extended", False)
         self.calibration_magn_use_extended_ = self.get_parameter('calibration_magn_use_extended').value
         
-        self.declare_parameter("magn_ellipsoid_center")
+        self.declare_parameter("magn_ellipsoid_center", [0.0, 0.0, 0.0])
         self.magn_ellipsoid_center_ = self.get_parameter('magn_ellipsoid_center').value
 
-        self.declare_parameter("magn_ellipsoid_transform")
+        self.declare_parameter("magn_ellipsoid_transform",
+            [0.0, 0.0, 0.0,
+            0.0, 0.0, 0.0,
+            0.0, 0.0, 0.0]
+        )
         magn_ellipsoid_transform_1d = self.get_parameter('magn_ellipsoid_transform').value
-        self.magn_ellipsoid_center_ = np.zeros((len(self.magn_ellipsoid_center_), len(self.magn_ellipsoid_center_)))
+        self.magn_ellipsoid_transform_ = np.zeros((len(self.magn_ellipsoid_center_), len(self.magn_ellipsoid_center_)))
         for i in range(len(self.magn_ellipsoid_center_)):
             for j in range(len(self.magn_ellipsoid_center_)):
                 self.magn_ellipsoid_transform_[i][j] = magn_ellipsoid_transform_1d[i + j]
 
-        self.declare_parameter("gyro_average_offset_x")
+        self.declare_parameter("gyro_average_offset_x", 0.0)
         self.gyro_average_offset_x_ = self.get_parameter('gyro_average_offset_x').value
 
-        self.declare_parameter("gyro_average_offset_y")
+        self.declare_parameter("gyro_average_offset_y", 0.0)
         self.gyro_average_offset_y_ = self.get_parameter('gyro_average_offset_y').value
 
-        self.declare_parameter("gyro_average_offset_z")
+        self.declare_parameter("gyro_average_offset_z", 0.0)
         self.gyro_average_offset_z_ = self.get_parameter('gyro_average_offset_z').value
 
         self.get_logger().info(f"Opening {self.port_}")
         
-        self.declare_parameter("baudrate")
+        self.declare_parameter("baudrate", 57600)
 
         imuMsg = Imu()
         imuMsg.orientation_covariance = self.orientation_covariance_
@@ -317,7 +331,7 @@ class RazorImuNode(rclpy.Node):
         return SetParametersResult(result=success)
 
 def main(args = None):
-    rclpy.init("razor_node")
+    rclpy.init()
     node = RazorImuNode()
     rclpy.spin(RazorImuNode)
     node.destroy_node()

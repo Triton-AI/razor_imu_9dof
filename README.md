@@ -1,29 +1,26 @@
 Official ROS Documentation
 --------------------------
-A much more extensive and standard ROS-style version of this documentation can be found on the ROS wiki at:
+A much more extensive and standard ROS2-style version of this documentation can be found on the ROS wiki at:
 
 http://wiki.ros.org/razor_imu_9dof
 
 
-Install and Configure ROS Package
+Install and Configure ROS2 Package
 ---------------------------------
-1) Install dependencies (for 3D visualization):
+1) Install dependencies:
 
 ```bash
-sudo apt-get install python-visual # For Ubuntu 16.04 and before
-# For Ubuntu 18.04, install https://github.com/lebarsfa/visual/tree/bionic, or see https://github.com/ENSTABretagneRobotics/razor_imu_9dof/issues/47
-sudo apt-get install python3-pip python3-wxgtk4.0 ; pip3 install vpython # From Ubuntu 20.04
+pip3 install transforms3d
 ```
 
 2) Download code:
 
 ```bash
 cd ~/catkin_workspace/src
-git clone https://github.com/ENSTABretagneRobotics/razor_imu_9dof.git
+git clone -b galactic-devel https://github.com/sisaha9/razor_imu_9dof.git
 cd ..
-catkin_make
-# For 3D visualization, from Ubuntu 20.04
-cd src/razor_imu_9dof/nodes ; wget https://www.glowscript.org/docs/VPythonDocs/VPtoGS.py ; python3 VPtoGS.py ; cp -f Converted/display_3D_visualization.py display_3D_visualization.py ; cd ../../..
+rosdep install --from-path src --ignore-src -y
+colcon build
 ```
 
 Install Arduino firmware
@@ -74,25 +71,7 @@ Launch
 Publisher only:
 
 ```bash
-roslaunch razor_imu_9dof razor-pub.launch
-```
-
-Publisher and 3D visualization:
-
-```bash
-roslaunch razor_imu_9dof razor-pub-and-display.launch
-```
-
-Publisher only with diagnostics:
-
-```bash
-roslaunch razor_imu_9dof razor-pub-diags.launch
-```
-
-3D visualization only:
-
-```bash
-roslaunch razor_imu_9dof razor-display.launch
+ros2 launch razor_imu_9dof razor-pub.launch
 ```
 
 

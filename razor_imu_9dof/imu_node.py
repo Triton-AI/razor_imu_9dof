@@ -282,10 +282,10 @@ class RazorImuNode(Node):
                 self.imuMsg.angular_velocity.z = -float(words[8])
 
             q = quaternion_from_euler(roll,pitch,yaw)
-            self.imuMsg.orientation.w = q[0]
-            self.imuMsg.orientation.x = q[1]
-            self.imuMsg.orientation.y = q[2]
-            self.imuMsg.orientation.z = q[3]
+            self.imuMsg.orientation.x = q[0]
+            self.imuMsg.orientation.y = q[1]
+            self.imuMsg.orientation.z = q[2]
+            self.imuMsg.orientation.w = q[3]
             self.imuMsg.header.stamp= self.get_clock().now().to_msg()
             self.imuMsg.header.frame_id = self.frame_id_
             self.seq = self.seq + 1

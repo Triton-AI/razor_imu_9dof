@@ -227,7 +227,7 @@
 //#define HW__VERSION_CODE 10736 // SparkFun "9DOF Razor IMU" version "SEN-10736" (HMC5883L magnetometer)
 //#define HW__VERSION_CODE 14001 // SparkFun "9DoF Razor IMU M0" version "SEN-14001"
 //#define HW__VERSION_CODE 15846 // SparkFun "OpenLog Artemis" version "SPX-15846"
-//#define HW__VERSION_CODE 16832 // SparkFun "OpenLog Artemis" version "DEV-16832"
+#define HW__VERSION_CODE 16832 // SparkFun "OpenLog Artemis" version "DEV-16832"
 //#define HW__VERSION_CODE 10183 // SparkFun "9DOF Sensor Stick" version "SEN-10183" (HMC5843 magnetometer)
 //#define HW__VERSION_CODE 10321 // SparkFun "9DOF Sensor Stick" version "SEN-10321" (HMC5843 magnetometer)
 //#define HW__VERSION_CODE 10724 // SparkFun "9DOF Sensor Stick" version "SEN-10724" (HMC5883L magnetometer)
@@ -240,8 +240,8 @@
 // Set your port used to send out data here!
 #if (HW__VERSION_CODE == 16832) || (HW__VERSION_CODE == 15846)
 #define LOG_PORT Serial
-//Uart SerialLog(1, 13, 12); // Declares a Uart object called Serial1 using instance 1 of Apollo3 UART peripherals with RX on pin 13 and TX on pin 12 (note, you specify *pins* not Apollo3 pads. This uses the variant's pin map to determine the Apollo3 pad)
-//#define LOG_PORT SerialLog
+Uart SerialLog(1, 13, 12); // Declares a Uart object called Serial1 using instance 1 of Apollo3 UART peripherals with RX on pin 13 and TX on pin 12 (note, you specify *pins* not Apollo3 pads. This uses the variant's pin map to determine the Apollo3 pad)
+#define LOG_PORT SerialLog
 #elif HW__VERSION_CODE == 14001
 #define LOG_PORT SERIAL_PORT_USBVIRTUAL
 //#define LOG_PORT SERIAL_PORT_HARDWARE
